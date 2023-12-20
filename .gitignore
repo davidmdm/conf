@@ -1,0 +1,7 @@
+.vscode
+.idea
+
+playground
+test_output
+
+*.out
