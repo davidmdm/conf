@@ -151,3 +151,5 @@ func joinLookupFuncs(fns ...LookupFunc) LookupFunc {
 		return
 	}
 }
+
+var Environ = MakeParser(os.LookupEnv)
