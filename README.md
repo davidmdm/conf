@@ -1,12 +1,6 @@
-# CONF
+# conf - a configuration parsing lib for Go
 
-**Description**: A Go library for parsing environment variables and setting corresponding flags.
-
-## Table of Contents
-
-- [Why](#why)
-- [Usage](#usage)
-- [Example](#example)
+**Description**: A Go library for parsing environment variables (and any other source) and setting corresponding flags.
 
 ## Why
 
@@ -14,7 +8,7 @@ Why another package for parsing the environment? Currently, most popular environ
 
 With `conf` and the use of Go Generics, we can now have a type-safe API that doesn't depend on struct tags and can take advantage of strong typing.
 
-Let's contrast `davidmdm/conf` with `github.com/kelseyhightower/envconfig`:
+Let's contrast `davidmdm/conf` with a popular environment parsing library `github.com/kelseyhightower/envconfig`:
 
 The envconfig approach is convenient but very sensitive to typos, and the defaults need to be encoded in their string format, which can be error-prone.
 
@@ -37,7 +31,7 @@ func main() {
 }
 ```
 
-On the other hand, `davidmdm/env` does not suffer from these problems. It also has the added benefit of being programmatic instead of static. If we need, environment variable names and options could be determined at runtime instead of statically typed into a struct definition.
+On the other hand, `davidmdm/conf` does not suffer from these problems. It also has the added benefit of being programmatic instead of static. If we need, environment variable names and options could be determined at runtime instead of statically typed into a struct definition.
 
 ```go
 package main
@@ -53,158 +47,136 @@ type Config struct {
 }
 
 func main() {
-    parser := conf.MakeParser()
-
     var cfg Config
-    conf.Var(parser, &cfg.DatabaseURL, "DATABASE_URL", env.Options[string]{Required: true})
-    conf.Var(parser, &cfg.Timeout, "TIMEOUT", env.Options[time.Duration]{Default: 5 * time.Minute})
-    
-    parser.Parse()
+    conf.Var(conf.Environ, &cfg.DatabaseURL, "DATABASE_URL", env.Options[string]{Required: true})
+    conf.Var(conf.Environ, &cfg.Timeout, "TIMEOUT", env.Options[time.Duration]{Default: 5 * time.Minute})
+
+    conf.Environ.MustParse()
 }
 ```
+
+## Overview
+
+This Go package provides a flexible and extensible configuration parser that allows you to easily manage configuration settings in your Go applications. The parser supports environment variables, command line arguments, and file system-based configuration, making it adaptable to various deployment scenarios.
+
+## Installation
+
+```bash
+go get -u github.com/davidmdm/conf
+```
+
+## Features
+
+Environment Variables: Retrieve configuration values from environment variables with the ability to set default values and mark certain configurations as required.
+
+Command Line Arguments: Easily map command line flags to configuration variables, supporting case-insensitivity and automatic conversion of underscores to dashes.
+
+File System Configuration: Load configuration settings from files in the file system, providing a convenient way to manage configuration files.
+
+Multiple Sources: Combine any of the above sources or your own custom functions to lookup strings.
 
 ## Usage
 
-The library provides a convenient way to parse environment variables and set corresponding flags in your Go application.
-
-### Creating an EnvSet
-
-The `EnvSet` struct is used to define a set of environment variables and their corresponding flags. You can create an `EnvSet` by calling the `MakeEnvSet` function:
+Creating a Parser
+To get started, create a configuration parser using the MakeParser function:
 
 ```go
-envset := env.MakeEnvSet()
+import "github.com/davidmdm/conf"
+
+// Create a configuration parser with optional lookup functions. By default if no lookup funcs are provided
+// the parser will use os.Lookupenv
+parser := conf.MakeParser()
 ```
 
-By default, an envset will use `os.Lookup` to find environment variables. However, when instantiating, you can pass a variadic number of lookup funcs that will be used one after the other while searching for the flag variable. This can be useful for testing or when you want your data to come from other sources like `hashicorp/vault`, `AWS Secret Manager`, or anything you desire.
+You can provide one or more lookup functions to the MakeParser function, which will be used to retrieve configuration values.
+
+Defining Configuration Variables
+Define your configuration variables using the Var function:
 
 ```go
-envset := env.MakeEnvSet(func(envvar string) (string, bool) {
-  // lookup from some source.
-})
-```
-
-### Setting Flags on an EnvSet
-
-```go
-envset := env.MakeEnvSet()
-
-var max int
-env.FlagVar(envset, &max, "MAX")
-```
-
-### Custom Decoding
-
-`env` will use reflection to figure out how to parse the environment string into the target variable, and this works well for common types. However, if a type implements `encoding.TextUnmarshaler` or `encoding.BinaryUnmarshaler`, then those methods will be used.
-
-Example taken from the tests:
-
-```go
-type Base64Text string
-
-var _ encoding.BinaryUnmarshaler = new(Base64Text)
-
-func (text *Base64Text) UnmarshalBinary(data []byte) error {
-	result, err := base64.Raw
-
-StdEncoding.DecodeString(string(data))
-	if err != nil {
-		return err
-	}
-	*text = Base64Text(result)
-	return nil
-}
-
-func TestBinaryUnmarshaler(t *testing.T) {
-	var text Base64Text
-
-	environment := env.MakeEnvSet(func(s string) (string, bool) { return "aGVsbG8gd29ybGQK", true })
-	env.FlagVar(environment, &text, "VAR")
-
-	require.NoError(t, environment.Parse())
-	require.Equal(t, "hello world\n", string(text))
-}
-```
-
-### Parsing Environment Variables
-
-To parse the environment variables and set the corresponding flags, call the `Parse` method on an `EnvSet`:
-
-```go
-err := envset.Parse()
-if err != nil {
-    // Handle error
-}
-```
-
-### Convenience Variables and Functions
-
-- `env.Environment`: The default envset exposed by the package, which looks up envvars using `os.Lookup`
-- `env.Var()`: Convenience function to set flags on the default environment, equivalent to: `env.FlagVar(env.Environment, ...)`
-- `env.Parse()`: Convenience function to parse the default Environment envset.
-- `env.MustParse()`: Same as `env.Parse`, but panics if an error is encountered
-- `env.CommandLineArgs()`: creates a lookup func for command line arguments.
-
-## Example
-
-```go
-import "github.com/davidmdm/env"
-
-type Config struct {
-    DatabaseURL string
-    Timeout     time.Duration
-}
-
-func ParseConfig() (*Config, error) {
-    var cfg Config
-
-    env.Var(&cfg.DatabaseURL, "DATABASE_URL", env.Options[string]{Required: true})
-    env.Var(&cfg.Timeout, "TIMEOUT", env.Options[time.Duration]{DefaultValue: 5 * time.Minute})
-
-    return &cfg, env.Parse()
-}
-```
-
-## Commandline Argument Support
-
-Although `env` was created to work primarily with environment variables, it can look for variables from other sources by creating a custom envset and providing lookup functions. This library provides a rudimentary support for command line arguments.
-
-All you need to do is provide the CommandLineArgs lookup function. However since all capital and underscored names are not as popular on the command line, the environment variable names are transformed during lookup to be lowercase and to use dashes instead of underscores.
-
-Let's look at an example. The following program prioritizes command line args but falls back to using os.LookupEnv.
-
-```go
-import (
-    "fmt"
-    "github.com/davidmdm/env"
+var (
+    yourStringVar string
+    yourIntVar    int
 )
 
+conf.Var(parser, &yourStringVar, "YOUR_STRING_VAR", conf.Options[string]{Required: true})
+conf.Var(parser, &yourIntVar, "YOUR_INT_VAR", conf.Options[int]{Required: false, DefaultValue: 42})
 
-func main() {
-    var cfg struct {
-        AppName string
-        Environment string
-    }
+// In this example, YOUR_STRING_VAR is a required string variable, and YOUR_INT_VAR is an optional integer variable with a default value of 42.
+```
 
-    // You may pass your own args to env.CommandLineArgs but by default it will use os.Args[1:]
-	source := env.MakeEnvSet(env.CommandLineArgs(), os.LookupEnv)
+Parsing Configuration
+Parse the configuration using the Parse or MustParse methods:
 
-    env.FlagVar(source, &cfg.AppName, "APP_NAME")
-    env.FlagVar(source, &cfg.Environment, "ENVIRONMENT")
-
-    source.MustParse()
-
-    fmt.Printf("%s (%s)\n", cfg.AppName, cfg.Environment)
+```go
+if err := parser.Parse(); err != nil {
+// Handle configuration parsing errors
 }
+
+// Alternatively, use MustParse to panic on errors
+parser.MustParse()
 ```
 
-Let's try calling it!
+## Configuring Lookup Functions
 
-```bash
-./example --app-name Example --environment local
-Example (local)
+### Environment Variables
+
+The package provides a default parser for environment variables `conf.Environ`.
+You can create one yourself:
+
+```go
+environ := conf.MakeParser(os.Lookupenv)
 ```
 
-```bash
-APP_NAME=example-v2 ENVIRONMENT=dev ./example --environment qa
-example-v2 (qa)
+### Command Line Arguments
+
+Create a lookup function for command line arguments:
+
+```go
+
+var (
+    path string
+    max  int
+)
+
+args := conf.MakeParser(conf.CommandLineArgs())
+
+conf.Var(args, "path", &path)
+conf.Var(args, "max", &max)
+
+args.MustParse()
 ```
+
+### File System Configuration
+
+Create a lookup function for file system-based configuration:
+
+```go
+var (
+    secret string
+)
+
+fs := conf.MakeParser(conf.FileSystem(conf.FileSystemOptions{Base: "/path/to/config/files"}))
+conf.Var(fs, "secret.txt", &secret)
+
+fs.MustParse()
+```
+
+### Multi Source Lookups
+
+You can pass more than one lookup function when creating a parser. It will look search each source in turn and attempt to use the first value it finds.
+
+```go
+// First Lookup command line args, then fallback to os.Lookupenv
+sources := conf.MakeParser(conf.CommandLineArgs(), os.Lookupenv)
+
+var max int
+
+// Note that commandline args automatically lower-cases and converts underscores to dashes before performing a lookup. This allows it to play nicely os.Lookupenv and allow you to override environment variables via command line args.
+conf.Var(sources, &max, "MAX") // Can be configured via --max flag or MAX environment variable
+sources.MustParse()
+```
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details
