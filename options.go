@@ -5,24 +5,28 @@ type options struct {
 	fallback any
 }
 
-type Options[T any] struct {
+type typedOption[T any] struct {
 	Required     bool
 	DefaultValue T
 }
 
-func (opts Options[T]) toOptions() options {
+type Option[T any] func(*typedOption[T])
+
+func Required[T any](value bool) Option[T] {
+	return func(o *typedOption[T]) {
+		o.Required = value
+	}
+}
+
+func Default[T any](value T) Option[T] {
+	return func(o *typedOption[T]) {
+		o.DefaultValue = value
+	}
+}
+
+func (opts typedOption[T]) toOptions() options {
 	return options{
 		required: opts.Required,
 		fallback: opts.DefaultValue,
 	}
-}
-
-type multiOpts[T any] []Options[T]
-
-func (opts multiOpts[T]) toOptions() options {
-	if len(opts) == 0 {
-		var zero T
-		return options{fallback: zero}
-	}
-	return opts[0].toOptions()
 }

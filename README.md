@@ -48,8 +48,8 @@ type Config struct {
 
 func main() {
     var cfg Config
-    conf.Var(conf.Environ, &cfg.DatabaseURL, "DATABASE_URL", conf.Options[string]{Required: true})
-    conf.Var(conf.Environ, &cfg.Timeout, "TIMEOUT", conf.Options[time.Duration]{Default: 5 * time.Minute})
+    conf.Var(conf.Environ, &cfg.DatabaseURL, "DATABASE_URL", conf.Required[string](true))
+    conf.Var(conf.Environ, &cfg.Timeout, "TIMEOUT", conf.Default[time.Duration](5 * time.Minute))
 
     conf.Environ.MustParse()
 }

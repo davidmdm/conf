@@ -68,10 +68,14 @@ func (parser Parser) MustParse() {
 	}
 }
 
-func Var[T any](parser Parser, p *T, name string, opts ...Options[T]) {
+func Var[T any](parser Parser, p *T, name string, opts ...Option[T]) {
+	var ot typedOption[T]
+	for _, apply := range opts {
+		apply(&ot)
+	}
 	parser.fields[name] = field{
 		value: genericValue[T]{p},
-		opts:  multiOpts[T](opts).toOptions(),
+		opts:  ot.toOptions(),
 	}
 }
 
