@@ -1,6 +1,6 @@
 # conf - a configuration parsing lib for Go
 
-**Description**: A Go library for parsing environment variables (and any other source) and setting corresponding flags.
+**Description**: A Go library for parsing environment variables (and any other source) and setting corresponding flags. It is heavily inspired by Go's std `flag` package in its design.
 
 ## Why
 
