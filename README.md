@@ -77,7 +77,8 @@ Multiple Sources: Combine any of the above sources or your own custom functions 
 
 ## Usage
 
-Creating a Parser
+### Creating a Parser
+
 To get started, create a configuration parser using the MakeParser function:
 
 ```go
@@ -90,7 +91,6 @@ parser := conf.MakeParser()
 
 You can provide one or more lookup functions to the MakeParser function, which will be used to retrieve configuration values.
 
-Defining Configuration Variables
 Define your configuration variables using the Var function:
 
 ```go
@@ -105,7 +105,8 @@ conf.Var(parser, &yourIntVar, "YOUR_INT_VAR", conf.Options[int]{Required: false,
 // In this example, YOUR_STRING_VAR is a required string variable, and YOUR_INT_VAR is an optional integer variable with a default value of 42.
 ```
 
-Parsing Configuration
+### Parsing Configuration
+
 Parse the configuration using the Parse or MustParse methods:
 
 ```go
@@ -160,6 +161,37 @@ fs := conf.MakeParser(conf.FileSystem(conf.FileSystemOptions{Base: "/path/to/con
 conf.Var(fs, "secret.txt", &secret)
 
 fs.MustParse()
+```
+
+### User provided lookups
+
+When creating a parser any number of lookup functions can be provided. For example you could read key/value pairs from maps, from a redis instance or any other key/value store.
+
+Let's implement a Redis integration that isn't provided by conf:
+
+```go
+
+var redisURL string
+conf.Var(conf.Environ, "REDIS_URL", &redisURL, config.Required[string](true))
+
+config.Environ.MustParse()
+
+// Skipping error handling for example's sake
+opt, _ := redis.ParseURL(redisURL)
+
+client := redis.NewClient(opt)
+
+rdb := conf.MakeParser(func(key string) (string, bool) {
+    value, err := rdb.Get(ctx, key)
+    if err != nil {
+        return "", false
+    }
+    return value, true
+})
+
+conf.Var(rdb, ...)
+
+rdb.MustParse()
 ```
 
 ### Multi Source Lookups
