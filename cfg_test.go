@@ -90,13 +90,28 @@ func TestMapParsingErrors(t *testing.T) {
 	require.Contains(
 		t,
 		errText,
-		`failed to parse BOOLINT: failed to parse key: 3: strconv.ParseBool: parsing "3": invalid syntax`,
+		"failed to parse variable(s):\n  - BOOLINT: failed to parse key: 3: strconv.ParseBool: parsing \"3\": invalid syntax\n  - INTBOOL: failed to parse value at key: 3: strconv.ParseBool: parsing \"4\": invalid syntax",
 	)
+}
 
-	require.Contains(
+func TestParsePanicRecovery(t *testing.T) {
+	parser := conf.MakeParser(func(s string) (string, bool) {
+		if s != strings.ToUpper(s) {
+			panic("lookup key not capitalized")
+		}
+		return s, true
+	})
+
+	var x string
+
+	conf.Var(parser, &x, "GOOD")
+	conf.Var(parser, &x, "bad")
+	conf.Var(parser, &x, "lower")
+
+	require.EqualError(
 		t,
-		errText,
-		`failed to parse INTBOOL: failed to parse value at key: 3: strconv.ParseBool: parsing "4": invalid syntax`,
+		parser.Parse(),
+		"failed to parse variable(s):\n  - bad: lookup key not capitalized\n  - lower: lookup key not capitalized",
 	)
 }
 
@@ -220,5 +235,5 @@ func TestInvalidDestination(t *testing.T) {
 
 	conf.Var(parser, &invalid, "NAME")
 
-	require.EqualError(t, parser.Parse(), "failed to parse NAME: destination type not supported: struct { string }")
+	require.EqualError(t, parser.Parse(), "failed to parse variable(s): NAME: destination type not supported: struct { string }")
 }

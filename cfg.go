@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/davidmdm/x/xerr"
 )
 
 type LookupFunc func(string) (string, bool)
@@ -43,22 +45,30 @@ func MakeParser(funcs ...LookupFunc) Parser {
 func (parser Parser) Parse() error {
 	errs := make([]error, 0, len(parser.fields))
 	for name, field := range parser.fields {
-		envvar, ok := parser.lookup(name)
-		if !ok && field.opts.required {
-			errs = append(errs, fmt.Errorf("%q is required but not found", name))
-			continue
-		}
-		if !ok {
-			field.value.Set(field.opts.fallback)
-			continue
-		}
+		func() {
+			defer func() {
+				if err := recover(); err != nil {
+					errs = append(errs, fmt.Errorf("%s: %v", name, err))
+				}
+			}()
 
-		if err := field.value.Parse(envvar); err != nil {
-			errs = append(errs, fmt.Errorf("failed to parse %s: %v", name, err))
-			continue
-		}
+			envvar, ok := parser.lookup(name)
+			if !ok && field.opts.required {
+				errs = append(errs, fmt.Errorf("%s: is required but not found", name))
+				return
+			}
+			if !ok {
+				field.value.Set(field.opts.fallback)
+				return
+			}
+
+			if err := field.value.Parse(envvar); err != nil {
+				errs = append(errs, fmt.Errorf("%s: %v", name, err))
+			}
+		}()
 	}
-	return errors.Join(errs...)
+
+	return xerr.MultiErrOrderedFrom("failed to parse variable(s)", errs...)
 }
 
 // MustParse is like Parse but panics if an error occurs

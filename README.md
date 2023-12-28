@@ -184,7 +184,10 @@ client := redis.NewClient(opt)
 rdb := conf.MakeParser(func(key string) (string, bool) {
     value, err := rdb.Get(ctx, key)
     if err != nil {
-        return "", false
+        if err == redis.Nil {
+            return "", false
+        }
+        panic(err) // panics in lookup functions are recovered during parsing and presented as normal errors from Parse().
     }
     return value, true
 })
