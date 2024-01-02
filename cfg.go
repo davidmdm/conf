@@ -58,7 +58,9 @@ func (parser Parser) Parse() error {
 				return
 			}
 			if !ok {
-				field.value.Set(field.opts.fallback)
+				if field.opts.fallback != nil {
+					field.value.Set(field.opts.fallback)
+				}
 				return
 			}
 
@@ -79,13 +81,13 @@ func (parser Parser) MustParse() {
 }
 
 func Var[T any](parser Parser, p *T, name string, opts ...Option[T]) {
-	var ot typedOption[T]
+	var options options
 	for _, apply := range opts {
-		apply(&ot)
+		apply(&options)
 	}
 	parser.fields[name] = field{
 		value: genericValue[T]{p},
-		opts:  ot.toOptions(),
+		opts:  options,
 	}
 }
 
