@@ -52,11 +52,13 @@ func (parser Parser) Parse() error {
 				}
 			}()
 
-			field.opts.required = field.opts.required || field.opts.nonempty
-
 			envvar, ok := parser.lookup(name)
 			if !ok && field.opts.required {
 				return errors.New("field is required")
+			}
+
+			if ok && envvar == "" && field.opts.nonempty {
+				return fmt.Errorf("field is declared but empty: cannot be empty")
 			}
 
 			// if not present use fallback or skip
@@ -65,10 +67,6 @@ func (parser Parser) Parse() error {
 					field.value.Set(field.opts.fallback)
 				}
 				return nil
-			}
-
-			if envvar == "" && field.opts.nonempty {
-				return fmt.Errorf("field is declared but empty: cannot be empty")
 			}
 
 			if err := field.value.Parse(envvar); err != nil {

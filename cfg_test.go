@@ -77,7 +77,9 @@ func TestVar(t *testing.T) {
 
 func TestRequireErrors(t *testing.T) {
 	parser := conf.MakeParser(func() conf.LookupFunc {
-		m := map[string]string{"empty": ""}
+		m := map[string]string{
+			"empty": "",
+		}
 		return func(s string) (string, bool) {
 			value, ok := m[s]
 			return value, ok
@@ -86,9 +88,11 @@ func TestRequireErrors(t *testing.T) {
 
 	var required string
 	var nonempty string
+	var nonemptyNotPresent string
 
 	conf.Var(parser, &required, "required", conf.Required[string](true))
 	conf.Var(parser, &nonempty, "empty", conf.NonEmpty[string](true))
+	conf.Var(parser, &nonemptyNotPresent, "emptynonpresent", conf.NonEmpty[string](true))
 
 	require.EqualError(
 		t,
