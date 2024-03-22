@@ -57,8 +57,13 @@ func (parser Parser) Parse() error {
 				return errors.New("field is required")
 			}
 
-			if ok && envvar == "" && field.opts.nonempty {
-				return fmt.Errorf("field is declared but empty: cannot be empty")
+			if ok && envvar == "" {
+				switch {
+				case field.opts.nonEmpty:
+					return fmt.Errorf("field is declared but empty: cannot be empty")
+				case field.opts.skipEmpty:
+					return
+				}
 			}
 
 			// if not present use fallback or skip
@@ -69,11 +74,7 @@ func (parser Parser) Parse() error {
 				return nil
 			}
 
-			if err := field.value.Parse(envvar); err != nil {
-				return err
-			}
-
-			return nil
+			return field.value.Parse(envvar)
 		}(); err != nil {
 			errs = append(errs, fmt.Errorf("%s: %w", name, err))
 		}
