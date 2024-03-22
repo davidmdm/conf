@@ -99,8 +99,8 @@ var (
     yourIntVar    int
 )
 
-conf.Var(parser, &yourStringVar, "YOUR_STRING_VAR", conf.Options[string]{Required: true})
-conf.Var(parser, &yourIntVar, "YOUR_INT_VAR", conf.Options[int]{Required: false, DefaultValue: 42})
+conf.Var(parser, &yourStringVar, "YOUR_STRING_VAR", conf.Required[string](true))
+conf.Var(parser, &yourIntVar, "YOUR_INT_VAR", conf.Default[int](42))
 
 // In this example, YOUR_STRING_VAR is a required string variable, and YOUR_INT_VAR is an optional integer variable with a default value of 42.
 ```

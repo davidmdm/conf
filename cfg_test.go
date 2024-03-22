@@ -75,10 +75,11 @@ func TestVar(t *testing.T) {
 	require.EqualValues(t, map[string]int{"x": 3, "y": 1}, config.mapint)
 }
 
-func TestRequireErrors(t *testing.T) {
+func TestOptions(t *testing.T) {
 	parser := conf.MakeParser(func() conf.LookupFunc {
 		m := map[string]string{
-			"empty": "",
+			"nonEmpty":  "",
+			"skipEmpty": "",
 		}
 		return func(s string) (string, bool) {
 			value, ok := m[s]
@@ -89,15 +90,18 @@ func TestRequireErrors(t *testing.T) {
 	var required string
 	var nonempty string
 	var nonemptyNotPresent string
+	var skipEmpty int
 
 	conf.Var(parser, &required, "required", conf.Required[string](true))
-	conf.Var(parser, &nonempty, "empty", conf.NonEmpty[string](true))
+	conf.Var(parser, &nonempty, "nonEmpty", conf.NonEmpty[string](true))
 	conf.Var(parser, &nonemptyNotPresent, "emptynonpresent", conf.NonEmpty[string](true))
+	// This would fail when parsing if not skipped
+	conf.Var(parser, &skipEmpty, "skipEmpty", conf.SkipEmpty[int](true))
 
 	require.EqualError(
 		t,
 		parser.Parse(),
-		"failed to parse variable(s):\n  - empty: field is declared but empty: cannot be empty\n  - required: field is required",
+		"failed to parse variable(s):\n  - nonEmpty: field is declared but empty: cannot be empty\n  - required: field is required",
 	)
 }
 
