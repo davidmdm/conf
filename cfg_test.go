@@ -75,6 +75,28 @@ func TestVar(t *testing.T) {
 	require.EqualValues(t, map[string]int{"x": 3, "y": 1}, config.mapint)
 }
 
+func TestRequireErrors(t *testing.T) {
+	parser := conf.MakeParser(func() conf.LookupFunc {
+		m := map[string]string{"empty": ""}
+		return func(s string) (string, bool) {
+			value, ok := m[s]
+			return value, ok
+		}
+	}())
+
+	var required string
+	var nonempty string
+
+	conf.Var(parser, &required, "required", conf.Required[string](true))
+	conf.Var(parser, &nonempty, "empty", conf.NonEmpty[string](true))
+
+	require.EqualError(
+		t,
+		parser.Parse(),
+		"failed to parse variable(s):\n  - empty: field is declared but empty: cannot be empty\n  - required: field is required",
+	)
+}
+
 func TestMapParsingErrors(t *testing.T) {
 	e1 := conf.MakeParser(func(name string) (string, bool) {
 		return "3=4", true

@@ -45,29 +45,40 @@ func MakeParser(funcs ...LookupFunc) Parser {
 func (parser Parser) Parse() error {
 	errs := make([]error, 0, len(parser.fields))
 	for name, field := range parser.fields {
-		func() {
+		if err := func() (err error) {
 			defer func() {
-				if err := recover(); err != nil {
-					errs = append(errs, fmt.Errorf("%s: %v", name, err))
+				if recovered := recover(); recovered != nil {
+					err = fmt.Errorf("%v", recovered)
 				}
 			}()
 
+			field.opts.required = field.opts.required || field.opts.nonempty
+
 			envvar, ok := parser.lookup(name)
 			if !ok && field.opts.required {
-				errs = append(errs, fmt.Errorf("%s: is required but not found", name))
-				return
+				return errors.New("field is required")
 			}
+
+			// if not present use fallback or skip
 			if !ok {
 				if field.opts.fallback != nil {
 					field.value.Set(field.opts.fallback)
 				}
-				return
+				return nil
+			}
+
+			if envvar == "" && field.opts.nonempty {
+				return fmt.Errorf("field is declared but empty: cannot be empty")
 			}
 
 			if err := field.value.Parse(envvar); err != nil {
-				errs = append(errs, fmt.Errorf("%s: %v", name, err))
+				return err
 			}
-		}()
+
+			return nil
+		}(); err != nil {
+			errs = append(errs, fmt.Errorf("%s: %w", name, err))
+		}
 	}
 
 	return xerr.MultiErrOrderedFrom("failed to parse variable(s)", errs...)

@@ -2,6 +2,7 @@ package conf
 
 type options struct {
 	required bool
+	nonempty bool
 	fallback any
 }
 
@@ -10,6 +11,12 @@ type Option[T any] func(*options)
 func Required[T any](value bool) Option[T] {
 	return func(o *options) {
 		o.required = value
+	}
+}
+
+func NonEmpty[T any](value bool) Option[T] {
+	return func(o *options) {
+		o.nonempty = value
 	}
 }
 
