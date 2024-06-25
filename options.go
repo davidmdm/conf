@@ -21,6 +21,13 @@ func NonEmpty[T any](value bool) Option[T] {
 	}
 }
 
+func RequiredNonEmpty[T any]() Option[T] {
+	return func(o *options) {
+		o.required = true
+		o.nonEmpty = true
+	}
+}
+
 func SkipEmpty[T any](value bool) Option[T] {
 	return func(o *options) {
 		o.skipEmpty = value
