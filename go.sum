@@ -1,9 +1,7 @@
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
-github.com/davidmdm/x/xerr v0.0.1 h1:RavtBxj43TPL38VTF4YBBAbpx/JMKWtpYG3PBC4Lx54=
-github.com/davidmdm/x/xerr v0.0.1/go.mod h1:nEfdhUc3O/FmGUGLiJp2hHRhBeANkon7PJexIQ1DlAE=
-github.com/davidmdm/x/xerr v0.0.2 h1:vzGeI42hKwBFqc0Lk6zk3o00yu1W4A/lilx9w3okIpM=
-github.com/davidmdm/x/xerr v0.0.2/go.mod h1:nEfdhUc3O/FmGUGLiJp2hHRhBeANkon7PJexIQ1DlAE=
+github.com/davidmdm/x/xerr v0.0.3 h1:WwHvo6qzR+eRmHq69Ftgb7PL9832iwy313XpQyJRGtM=
+github.com/davidmdm/x/xerr v0.0.3/go.mod h1:nEfdhUc3O/FmGUGLiJp2hHRhBeANkon7PJexIQ1DlAE=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/stretchr/testify v1.8.4 h1:CcVxjf3Q8PM0mHUKJCdn+eZZtm5yQwehR5yeSVQQcUk=

@@ -5,7 +5,7 @@ go 1.21.4
 toolchain go1.21.5
 
 require (
-	github.com/davidmdm/x/xerr v0.0.2
+	github.com/davidmdm/x/xerr v0.0.3
 	github.com/stretchr/testify v1.8.4
 )
 
