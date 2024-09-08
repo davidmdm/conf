@@ -20,8 +20,8 @@ func (v genericValue[T]) Set(value any) {
 	*v.dst = value.(T)
 }
 
-func (v genericValue[T]) Parse(envvar string) (err error) {
-	return parse(reflect.ValueOf(v.dst), envvar, true)
+func (v genericValue[T]) Parse(text string) error {
+	return parse(reflect.ValueOf(v.dst), text, true)
 }
 
 func parse(v reflect.Value, text string, topLevel bool) error {
@@ -87,18 +87,18 @@ func parse(v reflect.Value, text string, topLevel bool) error {
 
 		if t.Elem().Kind() == reflect.Uint8 {
 			v.Set(reflect.ValueOf([]byte(text)))
-			break
+			return nil
 		}
 
 		if strings.TrimSpace(text) == "" {
 			v.Set(reflect.MakeSlice(t, 0, 0))
+			return nil
 		}
 
 		items := strings.Split(text, ",")
 		slice := reflect.MakeSlice(t, len(items), len(items))
 		for i, subtext := range items {
-			err := parse(slice.Index(i), subtext, false)
-			if err != nil {
+			if err := parse(slice.Index(i), subtext, false); err != nil {
 				return err
 			}
 		}
