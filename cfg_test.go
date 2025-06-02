@@ -4,6 +4,7 @@ import (
 	"encoding"
 	"encoding/base64"
 	"encoding/json"
+	"net/url"
 	"os"
 	"strings"
 	"testing"
@@ -32,6 +33,7 @@ func TestVar(t *testing.T) {
 		stringslice []string
 		custom      Custom
 		mapint      map[string]int
+		url         url.URL
 	}
 
 	environment := conf.MakeParser(func() conf.LookupFunc {
@@ -45,6 +47,7 @@ func TestVar(t *testing.T) {
 			"ss":     "hello,world",
 			"custom": `[1,2,3]`,
 			"mapint": `x=3,y=1`,
+			"url":    "https://examples.com",
 		}
 		return func(s string) (string, bool) {
 			value, ok := e[s]
@@ -61,6 +64,7 @@ func TestVar(t *testing.T) {
 	conf.Var(environment, &config.stringslice, "ss")
 	conf.Var(environment, &config.custom, "custom")
 	conf.Var(environment, &config.mapint, "mapint")
+	conf.Var(environment, &config.url, "url")
 
 	require.NoError(t, environment.Parse())
 
@@ -73,6 +77,9 @@ func TestVar(t *testing.T) {
 	require.Equal(t, 5*time.Minute, config.duration)
 	require.EqualValues(t, []any{1.0, 2.0, 3.0}, config.custom.Value)
 	require.EqualValues(t, map[string]int{"x": 3, "y": 1}, config.mapint)
+	require.Equal(t, "https://examples.com", config.url.String())
+	require.Equal(t, "https", config.url.Scheme)
+	require.Equal(t, "examples.com", config.url.Host)
 }
 
 func TestOptions(t *testing.T) {

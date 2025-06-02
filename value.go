@@ -3,6 +3,7 @@ package conf
 import (
 	"encoding"
 	"fmt"
+	"net/url"
 	"reflect"
 	"strconv"
 	"strings"
@@ -41,6 +42,15 @@ func parse(v reflect.Value, text string, topLevel bool) error {
 		}
 		t = t.Elem()
 		v = v.Elem()
+	}
+
+	if t.PkgPath() == "net/url" && t.Name() == "URL" {
+		value, err := url.Parse(text)
+		if err != nil {
+			return err
+		}
+		v.Set(reflect.ValueOf(value))
+		return nil
 	}
 
 	switch t.Kind() {
