@@ -3,7 +3,6 @@ package conf
 import (
 	"encoding"
 	"fmt"
-	"net/url"
 	"reflect"
 	"strconv"
 	"strings"
@@ -26,31 +25,23 @@ func (v genericValue[T]) Parse(text string) error {
 }
 
 func parse(v reflect.Value, text string, topLevel bool) error {
-	if unmarshaler, ok := v.Interface().(encoding.TextUnmarshaler); ok {
-		return unmarshaler.UnmarshalText([]byte(text))
-	}
-
-	if unmarshaler, ok := v.Interface().(encoding.BinaryUnmarshaler); ok {
-		return unmarshaler.UnmarshalBinary([]byte(text))
-	}
-
 	t := v.Type()
 
 	for t.Kind() == reflect.Pointer {
 		if v.IsNil() {
-			v.Set(reflect.New(t))
+			v.Set(reflect.New(t.Elem()))
 		}
+
+		if unmarshaler, ok := v.Interface().(encoding.TextUnmarshaler); ok {
+			return unmarshaler.UnmarshalText([]byte(text))
+		}
+
+		if unmarshaler, ok := v.Interface().(encoding.BinaryUnmarshaler); ok {
+			return unmarshaler.UnmarshalBinary([]byte(text))
+		}
+
 		t = t.Elem()
 		v = v.Elem()
-	}
-
-	if t.PkgPath() == "net/url" && t.Name() == "URL" {
-		value, err := url.Parse(text)
-		if err != nil {
-			return err
-		}
-		v.Set(reflect.ValueOf(value))
-		return nil
 	}
 
 	switch t.Kind() {

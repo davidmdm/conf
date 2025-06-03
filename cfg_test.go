@@ -274,3 +274,13 @@ func TestInvalidDestination(t *testing.T) {
 
 	require.EqualError(t, parser.Parse(), "failed to parse variable(s): NAME: destination type not supported: struct { string }")
 }
+
+func TestPointerToURL(t *testing.T) {
+	parser := conf.MakeParser(func(s string) (string, bool) { return "http://localhost:3000", true })
+
+	var url *url.URL
+	conf.Var(parser, &url, "...")
+
+	require.NoError(t, parser.Parse())
+	require.Equal(t, "http://localhost:3000", url.String())
+}
