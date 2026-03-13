@@ -1,10 +1,13 @@
 package conf
 
+import "reflect"
+
 type options struct {
 	required  bool
 	nonEmpty  bool
 	skipEmpty bool
 	fallback  any
+	json      reflect.Type
 }
 
 type Option[T any] func(*options)
@@ -38,4 +41,8 @@ func Default[T any](value T) Option[T] {
 	return func(o *options) {
 		o.fallback = value
 	}
+}
+
+func JSON[T any](o *options) {
+	o.json = reflect.TypeFor[T]()
 }

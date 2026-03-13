@@ -284,3 +284,13 @@ func TestPointerToURL(t *testing.T) {
 	require.NoError(t, parser.Parse())
 	require.Equal(t, "http://localhost:3000", url.String())
 }
+
+func TestJsonOption(t *testing.T) {
+	parser := conf.MakeParser(func(s string) (string, bool) { return `[1,2,3]`, true })
+
+	var ints []int
+	conf.Var(parser, &ints, "...", conf.JSON[[]int])
+
+	require.NoError(t, parser.Parse())
+	require.Equal(t, []int{1, 2, 3}, ints)
+}

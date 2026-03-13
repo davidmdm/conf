@@ -1,12 +1,10 @@
 module github.com/davidmdm/conf
 
-go 1.21.4
-
-toolchain go1.21.5
+go 1.26.0
 
 require (
-	github.com/davidmdm/x/xerr v0.0.3
-	github.com/stretchr/testify v1.8.4
+	github.com/davidmdm/x/xerr v0.0.6
+	github.com/stretchr/testify v1.11.1
 )
 
 require (

@@ -1,10 +1,12 @@
 package conf
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 
 	"github.com/davidmdm/x/xerr"
@@ -69,6 +71,15 @@ func (parser Parser) Parse() error {
 				if field.opts.fallback != nil {
 					field.value.Set(field.opts.fallback)
 				}
+				return nil
+			}
+
+			if field.opts.json != nil {
+				result := reflect.New(field.opts.json)
+				if err := json.Unmarshal([]byte(text), result.Interface()); err != nil {
+					return err
+				}
+				field.value.Set(result.Elem().Interface())
 				return nil
 			}
 
