@@ -99,7 +99,7 @@ func (parser Parser) MustParse() {
 	}
 }
 
-func Var[T any](parser Parser, p *T, name string, opts ...Option[T]) {
+func (parser Parser) Var[T any](p *T, name string, opts ...Option[T]) {
 	var options options
 	for _, apply := range opts {
 		apply(&options)

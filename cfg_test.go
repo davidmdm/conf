@@ -55,16 +55,16 @@ func TestVar(t *testing.T) {
 		}
 	}())
 
-	conf.Var(environment, &config.int, "i")
-	conf.Var(environment, &config.uint, "ui")
-	conf.Var(environment, &config.float64, "f")
-	conf.Var(environment, &config.boolean, "b")
-	conf.Var(environment, &config.string, "s")
-	conf.Var(environment, &config.duration, "d")
-	conf.Var(environment, &config.stringslice, "ss")
-	conf.Var(environment, &config.custom, "custom")
-	conf.Var(environment, &config.mapint, "mapint")
-	conf.Var(environment, &config.url, "url")
+	environment.Var(&config.int, "i")
+	environment.Var(&config.uint, "ui")
+	environment.Var(&config.float64, "f")
+	environment.Var(&config.boolean, "b")
+	environment.Var(&config.string, "s")
+	environment.Var(&config.duration, "d")
+	environment.Var(&config.stringslice, "ss")
+	environment.Var(&config.custom, "custom")
+	environment.Var(&config.mapint, "mapint")
+	environment.Var(&config.url, "url")
 
 	require.NoError(t, environment.Parse())
 
@@ -99,11 +99,11 @@ func TestOptions(t *testing.T) {
 	var nonemptyNotPresent string
 	var skipEmpty int
 
-	conf.Var(parser, &required, "required", conf.Required[string](true))
-	conf.Var(parser, &nonempty, "nonEmpty", conf.NonEmpty[string](true))
-	conf.Var(parser, &nonemptyNotPresent, "emptynonpresent", conf.NonEmpty[string](true))
+	parser.Var(&required, "required", conf.Required[string](true))
+	parser.Var(&nonempty, "nonEmpty", conf.NonEmpty[string](true))
+	parser.Var(&nonemptyNotPresent, "emptynonpresent", conf.NonEmpty[string](true))
 	// This would fail when parsing if not skipped
-	conf.Var(parser, &skipEmpty, "skipEmpty", conf.SkipEmpty[int](true))
+	parser.Var(&skipEmpty, "skipEmpty", conf.SkipEmpty[int](true))
 
 	require.EqualError(
 		t,
@@ -118,10 +118,10 @@ func TestMapParsingErrors(t *testing.T) {
 	})
 
 	var boolint map[bool]int
-	conf.Var(e1, &boolint, "BOOLINT")
+	e1.Var(&boolint, "BOOLINT")
 
 	var intbool map[int]bool
-	conf.Var(e1, &intbool, "INTBOOL")
+	e1.Var(&intbool, "INTBOOL")
 
 	errText := e1.Parse().Error()
 	require.Contains(
@@ -141,9 +141,9 @@ func TestParsePanicRecovery(t *testing.T) {
 
 	var x string
 
-	conf.Var(parser, &x, "GOOD")
-	conf.Var(parser, &x, "bad")
-	conf.Var(parser, &x, "lower")
+	parser.Var(&x, "GOOD")
+	parser.Var(&x, "bad")
+	parser.Var(&x, "lower")
 
 	require.EqualError(
 		t,
@@ -165,7 +165,7 @@ func TestTextUnmarshaler(t *testing.T) {
 	var text CapText
 
 	environment := conf.MakeParser(func(s string) (string, bool) { return "value", true })
-	conf.Var(environment, &text, "VAR")
+	environment.Var(&text, "VAR")
 
 	require.NoError(t, environment.Parse())
 	require.Equal(t, "VALUE", string(text))
@@ -188,7 +188,7 @@ func TestBinaryUnmarshaler(t *testing.T) {
 	var text Base64Text
 
 	environment := conf.MakeParser(func(s string) (string, bool) { return "aGVsbG8gd29ybGQK", true })
-	conf.Var(environment, &text, "VAR")
+	environment.Var(&text, "VAR")
 
 	require.NoError(t, environment.Parse())
 	require.Equal(t, "hello world\n", string(text))
@@ -208,12 +208,12 @@ func TestCommandLineArgsSource(t *testing.T) {
 		input       []string
 	)
 
-	conf.Var(environment, &databaseURL, "DATABASE_URL")
-	conf.Var(environment, &force, "FORCE")
-	conf.Var(environment, &filter, "FILTER")
-	conf.Var(environment, &count, "COUNT")
-	conf.Var(environment, &other, "OTHER")
-	conf.Var(environment, &input, "INPUT")
+	environment.Var(&databaseURL, "DATABASE_URL")
+	environment.Var(&force, "FORCE")
+	environment.Var(&filter, "FILTER")
+	environment.Var(&count, "COUNT")
+	environment.Var(&other, "OTHER")
+	environment.Var(&input, "INPUT")
 
 	require.NoError(t, environment.Parse())
 
@@ -242,8 +242,8 @@ func TestMultipleLookups(t *testing.T) {
 		name string
 	)
 
-	conf.Var(environment, &max, "MAX")
-	conf.Var(environment, &name, "NAME")
+	environment.Var(&max, "MAX")
+	environment.Var(&name, "NAME")
 
 	require.NoError(t, environment.Parse())
 
@@ -260,7 +260,7 @@ func TestFileSystem(t *testing.T) {
 	fs := conf.MakeParser(conf.FileSystem(conf.FileSystemOptions{Base: "./test_output"}))
 
 	var secret string
-	conf.Var(fs, &secret, "secret.txt")
+	fs.Var(&secret, "secret.txt")
 
 	require.NoError(t, fs.Parse())
 	require.Equal(t, "hello world", secret)
@@ -270,7 +270,7 @@ func TestInvalidDestination(t *testing.T) {
 	var invalid struct{ string }
 	parser := conf.MakeParser(func(s string) (string, bool) { return "VALUE", true })
 
-	conf.Var(parser, &invalid, "NAME")
+	parser.Var(&invalid, "NAME")
 
 	require.EqualError(t, parser.Parse(), "failed to parse variable(s): NAME: destination type not supported: struct { string }")
 }
@@ -279,7 +279,7 @@ func TestPointerToURL(t *testing.T) {
 	parser := conf.MakeParser(func(s string) (string, bool) { return "http://localhost:3000", true })
 
 	var url *url.URL
-	conf.Var(parser, &url, "...")
+	parser.Var(&url, "...")
 
 	require.NoError(t, parser.Parse())
 	require.Equal(t, "http://localhost:3000", url.String())
@@ -289,7 +289,7 @@ func TestJsonOption(t *testing.T) {
 	parser := conf.MakeParser(func(s string) (string, bool) { return `[1,2,3]`, true })
 
 	var ints []int
-	conf.Var(parser, &ints, "...", conf.JSON[[]int])
+	parser.Var(&ints, "...", conf.JSON[[]int])
 
 	require.NoError(t, parser.Parse())
 	require.Equal(t, []int{1, 2, 3}, ints)
