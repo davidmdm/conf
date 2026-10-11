@@ -1,13 +1,22 @@
 package conf
 
-import "reflect"
+import (
+	jsonv1 "encoding/json"
+	"encoding/json/v2"
+	"reflect"
+)
+
+type unmarshaller struct {
+	propType  reflect.Type
+	unmarshal func([]byte, any) error
+}
 
 type options struct {
-	required  bool
-	nonEmpty  bool
-	skipEmpty bool
-	fallback  any
-	json      reflect.Type
+	required     bool
+	nonEmpty     bool
+	skipEmpty    bool
+	fallback     any
+	unmarshaller unmarshaller
 }
 
 type Option[T any] func(*options)
@@ -43,6 +52,32 @@ func Default[T any](value T) Option[T] {
 	}
 }
 
+// WithUnmarshaller lets you customize how you want the raw bytes of your text value unmarshalled into your variable.
+func WithUnmarshaller[T any](fn func([]byte, any) error) Option[T] {
+	return func(o *options) {
+		o.unmarshaller = unmarshaller{
+			propType:  reflect.TypeFor[T](),
+			unmarshal: fn,
+		}
+	}
+}
+
+// JSON will unmarshal your config variable using encoding/json/v2 with default v2 json options.
+// If you need to use json v1 semantics use JSONV1 or use WithUnmarshaller directly.
 func JSON[T any](o *options) {
-	o.json = reflect.TypeFor[T]()
+	o.unmarshaller = unmarshaller{
+		propType: reflect.TypeFor[T](),
+		unmarshal: func(data []byte, out any) error {
+			return json.Unmarshal(data, out)
+		},
+	}
+}
+
+// JSONV1 is a convenience for calling WithUnmarshaller using json.Unmarshal with v1 semantics.
+// If you are looking to use encoding/json/v2 semantics use conf.JSON
+func JSONV1[T any](o *options) {
+	o.unmarshaller = unmarshaller{
+		propType:  reflect.TypeFor[T](),
+		unmarshal: jsonv1.Unmarshal,
+	}
 }

@@ -1,7 +1,6 @@
 package conf
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -74,9 +73,9 @@ func (parser Parser) Parse() error {
 				return nil
 			}
 
-			if field.opts.json != nil {
-				result := reflect.New(field.opts.json)
-				if err := json.Unmarshal([]byte(text), result.Interface()); err != nil {
+			if field.opts.unmarshaller.unmarshal != nil {
+				result := reflect.New(field.opts.unmarshaller.propType)
+				if err := field.opts.unmarshaller.unmarshal([]byte(text), result.Interface()); err != nil {
 					return err
 				}
 				field.value.Set(result.Elem().Interface())
