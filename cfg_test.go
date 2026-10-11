@@ -12,6 +12,7 @@ import (
 
 	"github.com/davidmdm/conf"
 	"github.com/stretchr/testify/require"
+	"gopkg.in/yaml.v3"
 )
 
 type Custom struct {
@@ -293,4 +294,21 @@ func TestJsonOption(t *testing.T) {
 
 	require.NoError(t, parser.Parse())
 	require.Equal(t, []int{1, 2, 3}, ints)
+}
+
+func TestYamlUnmarshaller(t *testing.T) {
+	parser := conf.MakeParser(func(s string) (string, bool) {
+		const doc = `---
+hello: world
+foo: bar`
+		return doc, true
+	})
+
+	var data map[string]any
+	parser.Var(&data, "...", conf.WithUnmarshaller[map[string]any](yaml.Unmarshal))
+
+	require.NoError(t, parser.Parse())
+
+	require.Equal(t, "world", data["hello"])
+	require.Equal(t, "bar", data["foo"])
 }
