@@ -3,8 +3,9 @@ package conf
 import (
 	"errors"
 	"fmt"
+	"io"
+	"io/fs"
 	"os"
-	"path/filepath"
 	"reflect"
 	"strings"
 
@@ -149,29 +150,47 @@ func CommandLineArgs(args ...string) LookupFunc {
 	}
 }
 
-type FileSystemOptions struct {
-	Base string
-}
-
-func FileSystem(opts FileSystemOptions) LookupFunc {
-	if opts.Base == "" {
-		opts.Base = "."
-	}
+func FS(filesystem fs.FS) LookupFunc {
 	return func(path string) (string, bool) {
-		if !filepath.IsAbs(path) {
-			path = filepath.Join(opts.Base, path)
-		}
-
-		data, err := os.ReadFile(path)
+		file, err := filesystem.Open(path)
 		if err != nil {
-			if !errors.Is(err, os.ErrNotExist) {
-				panic(err)
+			panic(err)
+		}
+		defer func() {
+			if err := file.Close(); err != nil {
+				panic(xerr.Join(recover().(error), err))
 			}
-			return "", false
+		}()
+
+		data, err := io.ReadAll(file)
+		if err != nil {
+			if errors.Is(err, fs.ErrNotExist) {
+				return "", false
+			}
+			panic(err)
 		}
 
 		return string(data), true
 	}
+}
+
+func FSFromRootPath(path string) (LookupFunc, error) {
+	if path == "" {
+		return nil, fmt.Errorf("path cannot be empty")
+	}
+	root, err := os.OpenRoot(path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open root fs: %w", err)
+	}
+	return FS(root.FS()), nil
+}
+
+func MustFSFromRootPath(path string) LookupFunc {
+	fn, err := FSFromRootPath(path)
+	if err != nil {
+		panic(err)
+	}
+	return fn
 }
 
 func joinLookupFuncs(fns ...LookupFunc) LookupFunc {

@@ -258,7 +258,7 @@ func TestFileSystem(t *testing.T) {
 
 	require.NoError(t, os.WriteFile("./test_output/secret.txt", []byte("hello world"), 0o644))
 
-	fs := conf.MakeParser(conf.FileSystem(conf.FileSystemOptions{Base: "./test_output"}))
+	fs := conf.MakeParser(conf.MustFSFromRootPath("./test_output"))
 
 	var secret string
 	fs.Var(&secret, "secret.txt")
