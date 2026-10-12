@@ -143,8 +143,16 @@ func CommandLineArgs(args ...string) LookupFunc {
 		}
 	}
 
+	if flag != "" && len(m[flag]) == 0 {
+		m[flag] = []string{"true"}
+	}
+
 	return func(name string) (string, bool) {
-		name = strings.ReplaceAll(strings.ToLower(name), "_", "-")
+		name = strings.ToLower(name)
+		if value, ok := m[name]; ok {
+			return strings.Join(value, ","), ok
+		}
+		name = strings.ReplaceAll(name, "_", "-")
 		value, ok := m[name]
 		return strings.Join(value, ","), ok
 	}

@@ -196,27 +196,29 @@ func TestBinaryUnmarshaler(t *testing.T) {
 }
 
 func TestCommandLineArgsSource(t *testing.T) {
-	environment := conf.MakeParser(
-		conf.CommandLineArgs("--database-url", "db", "-force", "--filter=*.sql", "-count", "42", "-input", "a", "--input", "b"),
+	commandline := conf.MakeParser(
+		conf.CommandLineArgs("--database-url", "db", "-force", "--filter=*.sql", "-count", "42", "-input", "a", "--input", "b", "--rare_underscore"),
 	)
 
 	var (
-		databaseURL string
-		force       bool
-		filter      string
-		count       int
-		other       string
-		input       []string
+		databaseURL    string
+		force          bool
+		filter         string
+		count          int
+		other          string
+		input          []string
+		rareUnderscore bool
 	)
 
-	environment.Var(&databaseURL, "DATABASE_URL")
-	environment.Var(&force, "FORCE")
-	environment.Var(&filter, "FILTER")
-	environment.Var(&count, "COUNT")
-	environment.Var(&other, "OTHER")
-	environment.Var(&input, "INPUT")
+	commandline.Var(&databaseURL, "DATABASE_URL")
+	commandline.Var(&force, "FORCE")
+	commandline.Var(&filter, "FILTER")
+	commandline.Var(&count, "COUNT")
+	commandline.Var(&other, "OTHER")
+	commandline.Var(&input, "INPUT")
+	commandline.Var(&rareUnderscore, "RARE_UNDERSCORE")
 
-	require.NoError(t, environment.Parse())
+	require.NoError(t, commandline.Parse())
 
 	require.True(t, force)
 	require.Equal(t, "db", databaseURL)
@@ -224,6 +226,7 @@ func TestCommandLineArgsSource(t *testing.T) {
 	require.Equal(t, 42, count)
 	require.Equal(t, "", other)
 	require.Equal(t, []string{"a", "b"}, input)
+	require.True(t, rareUnderscore)
 }
 
 func TestMultipleLookups(t *testing.T) {
