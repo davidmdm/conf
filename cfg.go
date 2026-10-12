@@ -6,6 +6,7 @@ import (
 	"io"
 	"io/fs"
 	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 
@@ -158,10 +159,36 @@ func CommandLineArgs(args ...string) LookupFunc {
 	}
 }
 
-func FS(filesystem fs.FS) LookupFunc {
+type fsoptions struct {
+	AlwaysRelative bool
+}
+
+type FSOption func(*fsoptions)
+
+// FSAlwaysRelative when true will trim any leading slashes before performing any path lookups against an FS.
+// An example of this being useful is to facilitate working with os.Root against the "/". Users will often want to
+// configure with absolute paths and this allows an os.Root at "/" to accept absolute paths.
+// It can also allow absolute paths to refer to the root when not centered at "/".
+func FSAlwaysRelative(value bool) FSOption {
+	return func(f *fsoptions) {
+		f.AlwaysRelative = value
+	}
+}
+
+func FS(filesystem fs.FS, opts ...FSOption) LookupFunc {
+	var options fsoptions
+	for _, apply := range opts {
+		apply(&options)
+	}
 	return func(path string) (string, bool) {
+		if options.AlwaysRelative {
+			path = strings.TrimLeftFunc(path, func(r rune) bool { return r == filepath.Separator })
+		}
 		file, err := filesystem.Open(path)
 		if err != nil {
+			if errors.Is(err, fs.ErrNotExist) {
+				return "", false
+			}
 			panic(err)
 		}
 		defer func() {
@@ -172,9 +199,6 @@ func FS(filesystem fs.FS) LookupFunc {
 
 		data, err := io.ReadAll(file)
 		if err != nil {
-			if errors.Is(err, fs.ErrNotExist) {
-				return "", false
-			}
 			panic(err)
 		}
 
@@ -182,15 +206,14 @@ func FS(filesystem fs.FS) LookupFunc {
 	}
 }
 
+// FSFromRootPath creates a lookup func for a FS rooted at path.
+// Absolute filepaths are treated relative to the root.
 func FSFromRootPath(path string) (LookupFunc, error) {
-	if path == "" {
-		return nil, fmt.Errorf("path cannot be empty")
-	}
 	root, err := os.OpenRoot(path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open root fs: %w", err)
 	}
-	return FS(root.FS()), nil
+	return FS(root.FS(), FSAlwaysRelative(true)), nil
 }
 
 func MustFSFromRootPath(path string) LookupFunc {

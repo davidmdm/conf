@@ -270,6 +270,22 @@ func TestFileSystem(t *testing.T) {
 	require.Equal(t, "hello world", secret)
 }
 
+func TestFromRoot(t *testing.T) {
+	rootFS, err := conf.FSFromRootPath(".")
+	require.NoError(t, err)
+
+	parser := conf.MakeParser(rootFS)
+
+	var (
+		value string
+		gomod string
+	)
+	parser.Var(&value, "outside.root.txt")
+	parser.Var(&gomod, "/go.mod", conf.RequiredNonEmpty[string]())
+
+	require.NoError(t, parser.Parse())
+}
+
 func TestInvalidDestination(t *testing.T) {
 	var invalid struct{ string }
 	parser := conf.MakeParser(func(s string) (string, bool) { return "VALUE", true })
