@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"maps"
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 
 	"github.com/davidmdm/x/xerr"
@@ -18,6 +20,7 @@ type LookupFunc func(string) (string, bool)
 type field struct {
 	value value
 	opts  options
+	typ   reflect.Type
 }
 
 type Parser struct {
@@ -75,9 +78,9 @@ func (parser Parser) Parse() error {
 				return nil
 			}
 
-			if field.opts.unmarshaller.unmarshal != nil {
-				result := reflect.New(field.opts.unmarshaller.propType)
-				if err := field.opts.unmarshaller.unmarshal([]byte(text), result.Interface()); err != nil {
+			if field.opts.unmarshal != nil {
+				result := reflect.New(field.typ)
+				if err := field.opts.unmarshal([]byte(text), result.Interface()); err != nil {
 					return err
 				}
 				field.value.Set(result.Elem().Interface())
@@ -107,8 +110,38 @@ func (parser Parser) Var[T any](p *T, name string, opts ...Option[T]) {
 	}
 	parser.fields[name] = field{
 		value: genericValue[T]{p},
+		typ:   reflect.TypeFor[T](),
 		opts:  options,
 	}
+}
+
+func (parser Parser) Help() string {
+	var builder strings.Builder
+
+	builder.WriteString("Configuration Vars:\n")
+
+	for _, name := range slices.Sorted(maps.Keys(parser.fields)) {
+		field := parser.fields[name]
+		builder.WriteString(indent(fmt.Sprintf("%s (type: %s)", name, field.typ), 2))
+		builder.WriteString("\n")
+		if desc := field.opts.desc; desc != "" {
+			builder.WriteString(indent(desc, 4))
+			builder.WriteString("\n")
+		}
+	}
+
+	return strings.TrimSpace(builder.String())
+}
+
+func indent(value string, num int) string {
+	indent := strings.Repeat(" ", num)
+	var builder strings.Builder
+	for line := range strings.SplitSeq(value, "\n") {
+		_, _ = builder.WriteString(indent)
+		_, _ = builder.WriteString(line)
+		_, _ = builder.WriteString("\n")
+	}
+	return strings.TrimRight(builder.String(), "\n")
 }
 
 // CommandLineArgs returns a lookup function that will search the provided args for flags.
