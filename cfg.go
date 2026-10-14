@@ -228,7 +228,7 @@ func FS(filesystem fs.FS, opts ...FSOption) LookupFunc {
 		if options.AlwaysRelative {
 			path = strings.TrimLeftFunc(path, func(r rune) bool { return r == filepath.Separator })
 		}
-		file, err := filesystem.Open(path)
+		file, err := filesystem.Open(filepath.Clean(path))
 		if err != nil {
 			if errors.Is(err, fs.ErrNotExist) {
 				return "", false
