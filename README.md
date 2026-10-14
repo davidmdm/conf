@@ -48,8 +48,8 @@ type Config struct {
 
 func main() {
     var cfg Config
-    conf.Var(conf.Environ, &cfg.DatabaseURL, "DATABASE_URL", conf.Required[string](true))
-    conf.Var(conf.Environ, &cfg.Timeout, "TIMEOUT", conf.Default[time.Duration](5 * time.Minute))
+    conf.Environ.Var(&cfg.DatabaseURL, "DATABASE_URL", conf.Required[string](true))
+    conf.Environ.Var(&cfg.Timeout, "TIMEOUT", conf.Default[time.Duration](5 * time.Minute))
 
     conf.Environ.MustParse()
 }
@@ -85,7 +85,7 @@ To get started, create a configuration parser using the MakeParser function:
 import "github.com/davidmdm/conf"
 
 // Create a configuration parser with optional lookup functions. By default if no lookup funcs are provided
-// the parser will use os.Lookupenv
+// the parser will use os.LookupEnv
 parser := conf.MakeParser()
 ```
 
@@ -99,8 +99,8 @@ var (
     yourIntVar    int
 )
 
-conf.Var(parser, &yourStringVar, "YOUR_STRING_VAR", conf.Required[string](true))
-conf.Var(parser, &yourIntVar, "YOUR_INT_VAR", conf.Default[int](42))
+parser.Var(&yourStringVar, "YOUR_STRING_VAR", conf.Required[string](true))
+parser.Var(&yourIntVar, "YOUR_INT_VAR", conf.Default[int](42))
 
 // In this example, YOUR_STRING_VAR is a required string variable, and YOUR_INT_VAR is an optional integer variable with a default value of 42.
 ```
@@ -118,6 +118,32 @@ if err := parser.Parse(); err != nil {
 parser.MustParse()
 ```
 
+### Help
+
+The parser can describe its configuration variables using the Help method. Use the Desc option to add a description to a variable:
+
+```go
+parser.Var(&yourStringVar, "YOUR_STRING_VAR", conf.Required[string](true), conf.Desc[string]("a required string variable"))
+parser.Var(&yourIntVar, "YOUR_INT_VAR", conf.Default[int](42), conf.Desc[int]("an optional integer variable"))
+
+if slices.Contains(os.Args, "-h") || slices.Contains(os.Args, "--help") {
+    fmt.Println(parser.Help())
+    os.Exit(0)
+}
+
+parser.MustParse()
+```
+
+Which outputs:
+
+```
+Configuration Vars:
+  YOUR_INT_VAR (type: int)
+    an optional integer variable
+  YOUR_STRING_VAR (type: string)
+    a required string variable
+```
+
 ## Configuring Lookup Functions
 
 ### Environment Variables
@@ -126,7 +152,7 @@ The package provides a default parser for environment variables `conf.Environ`.
 You can create one yourself:
 
 ```go
-environ := conf.MakeParser(os.Lookupenv)
+environ := conf.MakeParser(os.LookupEnv)
 ```
 
 ### Command Line Arguments
@@ -142,8 +168,8 @@ var (
 
 args := conf.MakeParser(conf.CommandLineArgs())
 
-conf.Var(args, "path", &path)
-conf.Var(args, "max", &max)
+args.Var(&path, "path")
+args.Var(&max, "max")
 
 args.MustParse()
 ```
@@ -157,8 +183,8 @@ var (
     secret string
 )
 
-fs := conf.MakeParser(conf.FileSystem(conf.FileSystemOptions{Base: "/path/to/config/files"}))
-conf.Var(fs, "secret.txt", &secret)
+fs := conf.MakeParser(conf.MustFSFromRootPath("/path/to/config/files"))
+fs.Var(&secret, "secret.txt")
 
 fs.MustParse()
 ```
@@ -172,9 +198,9 @@ Let's implement a Redis integration that isn't provided by conf:
 ```go
 
 var redisURL string
-conf.Var(conf.Environ, "REDIS_URL", &redisURL, config.Required[string](true))
+conf.Environ.Var(&redisURL, "REDIS_URL", conf.Required[string](true))
 
-config.Environ.MustParse()
+conf.Environ.MustParse()
 
 // Skipping error handling for example's sake
 opt, _ := redis.ParseURL(redisURL)
@@ -182,7 +208,7 @@ opt, _ := redis.ParseURL(redisURL)
 client := redis.NewClient(opt)
 
 rdb := conf.MakeParser(func(key string) (string, bool) {
-    value, err := rdb.Get(ctx, key)
+    value, err := client.Get(ctx, key).Result()
     if err != nil {
         if err == redis.Nil {
             return "", false
@@ -192,7 +218,7 @@ rdb := conf.MakeParser(func(key string) (string, bool) {
     return value, true
 })
 
-conf.Var(rdb, ...)
+rdb.Var(...)
 
 rdb.MustParse()
 ```
@@ -202,13 +228,13 @@ rdb.MustParse()
 You can pass more than one lookup function when creating a parser. It will look search each source in turn and attempt to use the first value it finds.
 
 ```go
-// First Lookup command line args, then fallback to os.Lookupenv
-sources := conf.MakeParser(conf.CommandLineArgs(), os.Lookupenv)
+// First Lookup command line args, then fallback to os.LookupEnv
+sources := conf.MakeParser(conf.CommandLineArgs(), os.LookupEnv)
 
 var max int
 
-// Note that commandline args automatically lower-cases and converts underscores to dashes before performing a lookup. This allows it to play nicely os.Lookupenv and allow you to override environment variables via command line args.
-conf.Var(sources, &max, "MAX") // Can be configured via --max flag or MAX environment variable
+// Note that commandline args automatically lower-cases and converts underscores to dashes before performing a lookup. This allows it to play nicely os.LookupEnv and allow you to override environment variables via command line args.
+sources.Var(&max, "MAX") // Can be configured via --max flag or MAX environment variable
 sources.MustParse()
 ```
 
