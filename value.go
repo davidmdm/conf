@@ -12,12 +12,17 @@ import (
 type value interface {
 	Parse(string) error
 	Set(any)
+	Get() any
 }
 
 type genericValue[T any] struct{ dst *T }
 
 func (v genericValue[T]) Set(value any) {
 	*v.dst = value.(T)
+}
+
+func (v genericValue[T]) Get() any {
+	return *v.dst
 }
 
 func (v genericValue[T]) Parse(text string) error {

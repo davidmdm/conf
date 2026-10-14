@@ -4,6 +4,7 @@ import (
 	"encoding"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"net/url"
 	"os"
 	"strings"
@@ -330,4 +331,33 @@ foo: bar`
 
 	require.Equal(t, "world", data["hello"])
 	require.Equal(t, "bar", data["foo"])
+}
+
+func TestWithValidators(t *testing.T) {
+	parser := conf.MakeParser(func(s string) (string, bool) { return `[1,2,3]`, true })
+
+	var ints []int
+	parser.Var(
+		&ints,
+		"...",
+		conf.JSON[[]int],
+		conf.WithValidator(func(s []int) error {
+			if len(s) < 5 {
+				return fmt.Errorf("requires at least 5 elements")
+			}
+			return nil
+		}),
+		conf.WithValidator(func(s []int) error {
+			for _, value := range s {
+				if value%2 == 0 {
+					return fmt.Errorf("cannot contain even values but got: %d", value)
+				}
+			}
+			return nil
+		}),
+	)
+
+	err := parser.Parse()
+	require.ErrorContains(t, err, "requires at least 5 elements", err.Error())
+	require.ErrorContains(t, err, "cannot contain even values but got: 2", err.Error())
 }

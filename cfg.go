@@ -58,6 +58,17 @@ func (parser Parser) Parse() error {
 				}
 			}()
 
+			defer func() {
+				if err != nil || len(field.opts.validators) == 0 {
+					return
+				}
+				errs := make([]error, len(field.opts.validators))
+				for i, validator := range field.opts.validators {
+					errs[i] = validator(field.value.Get())
+				}
+				err = xerr.MultiErrFrom("failed to validate", errs...)
+			}()
+
 			text, ok := parser.lookup(name)
 			if ok && text == "" {
 				switch {

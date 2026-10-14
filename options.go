@@ -6,12 +6,13 @@ import (
 )
 
 type options struct {
-	required  bool
-	nonEmpty  bool
-	skipEmpty bool
-	fallback  any
-	unmarshal func([]byte, any) error
-	desc      string
+	required   bool
+	nonEmpty   bool
+	skipEmpty  bool
+	fallback   any
+	unmarshal  func([]byte, any) error
+	desc       string
+	validators []func(any) error
 }
 
 type Option[T any] func(*options)
@@ -72,4 +73,12 @@ func JSON[T any](o *options) {
 // If you are looking to use encoding/json/v2 semantics use conf.JSON
 func JSONV1[T any](o *options) {
 	o.unmarshal = jsonv1.Unmarshal
+}
+
+func WithValidator[T any](fn func(T) error) Option[T] {
+	return func(o *options) {
+		o.validators = append(o.validators, func(value any) error {
+			return fn(value.(T))
+		})
+	}
 }
