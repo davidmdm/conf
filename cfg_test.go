@@ -640,6 +640,27 @@ func TestCommandLineArgsLookup(t *testing.T) {
 	}
 }
 
+func TestCommandLineArgsDefaultsToOSArgs(t *testing.T) {
+	defer func(args []string) { os.Args = args }(os.Args)
+	os.Args = []string{"cmd", "--a", "1"}
+
+	cases := []struct {
+		name string
+		args []string
+		ok   bool
+	}{
+		{name: "nil args reads os.Args", args: nil, ok: true},
+		{name: "empty args ignores os.Args", args: []string{}, ok: false},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, ok := conf.CommandLineArgs(tc.args...)("A")
+			require.Equal(t, tc.ok, ok)
+		})
+	}
+}
+
 func TestNilLookupsSkipped(t *testing.T) {
 	parser := conf.MakeParser(nil, func(string) (string, bool) { return "x", true })
 

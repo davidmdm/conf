@@ -160,7 +160,7 @@ func indent(value string, num int) string {
 // the lookup is case-insensitive and all underscores are changes to dashes.
 // For example, a variable mapped to DATABASE_URL can be found using the --database-url flag when working with CommandLineArgs.
 func CommandLineArgs(args ...string) LookupFunc {
-	if len(args) == 0 {
+	if args == nil {
 		args = os.Args[1:]
 	}
 
