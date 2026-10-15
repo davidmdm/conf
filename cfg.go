@@ -15,6 +15,7 @@ import (
 	"github.com/davidmdm/x/xerr"
 )
 
+// LookupFunc looks up the raw string value for a variable name, reporting whether it was found.
 type LookupFunc func(string) (string, bool)
 
 type field struct {
@@ -23,11 +24,14 @@ type field struct {
 	typ   reflect.Type
 }
 
+// Parser holds a set of registered configuration variables and parses them from its lookup functions.
 type Parser struct {
 	fields map[string]field
 	lookup LookupFunc
 }
 
+// MakeParser creates a Parser that looks up values using the given lookup functions, tried in order until one finds the name.
+// Nil functions are ignored. If none are provided, os.LookupEnv is used.
 func MakeParser(funcs ...LookupFunc) Parser {
 	lookupFuncs := make([]LookupFunc, 0, len(funcs))
 	for _, fn := range funcs {
@@ -48,6 +52,8 @@ func MakeParser(funcs ...LookupFunc) Parser {
 	}
 }
 
+// Parse looks up and sets every registered variable, applying its options.
+// Errors for all variables are collected and returned together.
 func (parser Parser) Parse() error {
 	errs := make([]error, 0, len(parser.fields))
 	for name, field := range parser.fields {
@@ -114,6 +120,7 @@ func (parser Parser) MustParse() {
 	}
 }
 
+// Var registers p to be set from the variable name when the parser is parsed.
 func (parser Parser) Var[T any](p *T, name string, opts ...Option[T]) {
 	var options options
 	for _, apply := range opts {
@@ -126,6 +133,7 @@ func (parser Parser) Var[T any](p *T, name string, opts ...Option[T]) {
 	}
 }
 
+// Help returns a listing of the registered variables with their types and descriptions, sorted by name.
 func (parser Parser) Help() string {
 	var builder strings.Builder
 
@@ -209,6 +217,7 @@ type fsoptions struct {
 	AlwaysRelative bool
 }
 
+// FSOption configures the lookup function returned by FS.
 type FSOption func(*fsoptions)
 
 // FSAlwaysRelative when true will trim any leading slashes before performing any path lookups against an FS.
@@ -267,6 +276,7 @@ func FSFromRootPath(path string) (LookupFunc, error) {
 	return FS(root.FS(), FSAlwaysRelative(true)), nil
 }
 
+// MustFSFromRootPath is like FSFromRootPath but panics if an error occurs.
 func MustFSFromRootPath(path string) LookupFunc {
 	fn, err := FSFromRootPath(path)
 	if err != nil {
@@ -287,4 +297,5 @@ func joinLookupFuncs(fns ...LookupFunc) LookupFunc {
 	}
 }
 
+// Environ is the default Parser, which looks up variables from the environment.
 var Environ = MakeParser(os.LookupEnv)
