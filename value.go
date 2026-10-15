@@ -122,7 +122,7 @@ func parse(v reflect.Value, text string, topLevel bool) error {
 		}
 
 		target := reflect.MakeMap(t)
-		for _, elem := range strings.Split(text, ",") {
+		for elem := range strings.SplitSeq(text, ",") {
 			key, value, ok := strings.Cut(elem, "=")
 			if !ok {
 				continue

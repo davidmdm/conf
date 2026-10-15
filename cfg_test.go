@@ -9,6 +9,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"testing/fstest"
 	"time"
 
 	"github.com/davidmdm/conf"
@@ -360,4 +361,293 @@ func TestWithValidators(t *testing.T) {
 	err := parser.Parse()
 	require.ErrorContains(t, err, "requires at least 5 elements", err.Error())
 	require.ErrorContains(t, err, "cannot contain even values but got: 2", err.Error())
+}
+
+// register returns a func that declares a variable of type T named VAR on the parser,
+// and returns a getter for its value after parsing.
+func register[T any](opts ...conf.Option[T]) func(conf.Parser) func() any {
+	return func(p conf.Parser) func() any {
+		var x T
+		p.Var(&x, "VAR", opts...)
+		return func() any { return x }
+	}
+}
+
+func TestParse(t *testing.T) {
+	cases := []struct {
+		Name    string
+		Value   string
+		Missing bool
+		Run     func(conf.Parser) func() any
+		Want    any
+		Err     string
+	}{
+		{
+			Name:  "hex int",
+			Value: "0x10",
+			Run:   register[int](),
+			Want:  16,
+		},
+		{
+			Name:  "int8 overflow",
+			Value: "128",
+			Run:   register[int8](),
+			Err:   "value out of range",
+		},
+		{
+			Name:  "invalid int",
+			Value: "x",
+			Run:   register[int](),
+			Err:   "invalid syntax",
+		},
+		{
+			Name:  "negative uint",
+			Value: "-1",
+			Run:   register[uint](),
+			Err:   "invalid syntax",
+		},
+		{
+			Name:  "float32",
+			Value: "1.5",
+			Run:   register[float32](),
+			Want:  float32(1.5),
+		},
+		{
+			Name:  "invalid float",
+			Value: "x",
+			Run:   register[float64](),
+			Err:   "invalid syntax",
+		},
+		{
+			Name:  "invalid bool",
+			Value: "maybe",
+			Run:   register[bool](),
+			Err:   "invalid syntax",
+		},
+		{
+			Name:  "invalid duration",
+			Value: "5x",
+			Run:   register[time.Duration](),
+			Err:   `unknown unit "x"`,
+		},
+		{
+			Name:  "pointer",
+			Value: "5",
+			Run:   register[*int](),
+			Want:  new(5),
+		},
+		{
+			Name:  "bytes",
+			Value: "hello",
+			Run:   register[[]byte](),
+			Want:  []byte("hello"),
+		},
+		{
+			Name:  "int slice",
+			Value: "1,2,3",
+			Run:   register[[]int](),
+			Want:  []int{1, 2, 3},
+		},
+		{Name: "blank slice", Value: " ", Run: register[[]int](), Want: []int{}},
+		{
+			Name:  "invalid slice item",
+			Value: "1,x",
+			Run:   register[[]int](),
+			Err:   "invalid syntax",
+		},
+		{
+			Name:  "deep slice",
+			Value: "1",
+			Run:   register[[][]int](),
+			Err:   "cannot support deep slices",
+		},
+		{
+			Name:  "blank map",
+			Value: " ",
+			Run:   register[map[string]int](),
+			Want:  map[string]int(nil),
+		},
+		{
+			Name:  "map skips entries without =",
+			Value: "a=1,b",
+			Run:   register[map[string]int](),
+			Want:  map[string]int{"a": 1},
+		},
+		{
+			Name:  "deep map",
+			Value: "a=1",
+			Run:   register[[]map[string]int](),
+			Err:   "cannot support deep maps",
+		},
+		{
+			Name:    "default when missing",
+			Missing: true,
+			Run:     register(conf.Default(7)),
+			Want:    7,
+		},
+		{
+			Name:  "default ignored when present",
+			Value: "1",
+			Run:   register(conf.Default(7)),
+			Want:  1,
+		},
+		{
+			Name:    "missing stays zero",
+			Missing: true,
+			Run:     register[int](),
+			Want:    0,
+		},
+		{
+			Name:  "required present",
+			Value: "x",
+			Run:   register(conf.Required[string](true)),
+			Want:  "x",
+		},
+		{
+			Name:    "required false",
+			Missing: true,
+			Run:     register(conf.Required[string](false)),
+			Want:    "",
+		},
+		{
+			Name:  "empty string allowed",
+			Value: "",
+			Run:   register[string](),
+			Want:  "",
+		},
+		{
+			Name:    "required non empty missing",
+			Missing: true,
+			Run:     register(conf.RequiredNonEmpty[string]()),
+			Err:     "field is required",
+		},
+		{
+			Name:  "required non empty empty",
+			Value: "",
+			Run:   register(conf.RequiredNonEmpty[string]()),
+			Err:   "cannot be empty",
+		},
+		{
+			Name:  "json v1",
+			Value: `{"name":"bob"}`,
+			Run:   register(conf.Option[struct{ Name string }](conf.JSONV1[struct{ Name string }])),
+			Want:  struct{ Name string }{"bob"},
+		},
+		{
+			Name:  "json invalid",
+			Value: `[1,`,
+			Run:   register(conf.Option[[]int](conf.JSON[[]int])),
+			Err:   "unexpected EOF",
+		},
+		{
+			Name:  "validator passes",
+			Value: "1",
+			Run:   register(conf.WithValidator(func(int) error { return nil })),
+			Want:  1,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.Name, func(t *testing.T) {
+			parser := conf.MakeParser(func(string) (string, bool) { return tc.Value, !tc.Missing })
+			get := tc.Run(parser)
+
+			err := parser.Parse()
+			if tc.Err != "" {
+				require.ErrorContains(t, err, tc.Err)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tc.Want, get())
+		})
+	}
+}
+
+func TestMustParse(t *testing.T) {
+	parser := conf.MakeParser(func(string) (string, bool) { return "x", true })
+
+	var s string
+	parser.Var(&s, "S")
+	require.NotPanics(t, parser.MustParse)
+
+	var i int
+	parser.Var(&i, "I")
+	require.Panics(t, parser.MustParse)
+}
+
+func TestHelp(t *testing.T) {
+	parser := conf.MakeParser()
+
+	var (
+		b string
+		a int
+	)
+	parser.Var(&b, "B")
+	parser.Var(&a, "A", conf.Desc[int]("first line\nsecond line"))
+
+	require.Equal(
+		t,
+		"Configuration Vars:\n  A (type: int)\n    first line\n    second line\n  B (type: string)",
+		parser.Help(),
+	)
+}
+
+func TestCommandLineArgsLookup(t *testing.T) {
+	cases := []struct {
+		name string
+		args []string
+		key  string
+		want string
+		ok   bool
+	}{
+		{name: "skips positional args", args: []string{"pos", "--a", "1", "pos2"}, key: "A", want: "1", ok: true},
+		{name: "case insensitive", args: []string{"--NAME", "bob"}, key: "name", want: "bob", ok: true},
+		{name: "empty equals value", args: []string{"--a="}, key: "A", want: "", ok: true},
+		{name: "trailing bool", args: []string{"--a", "1", "--b"}, key: "B", want: "true", ok: true},
+		{name: "missing", args: []string{"--a", "1"}, key: "B", ok: false},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			value, ok := conf.CommandLineArgs(tc.args...)(tc.key)
+			require.Equal(t, tc.ok, ok)
+			require.Equal(t, tc.want, value)
+		})
+	}
+}
+
+func TestNilLookupsSkipped(t *testing.T) {
+	parser := conf.MakeParser(nil, func(string) (string, bool) { return "x", true })
+
+	var s string
+	parser.Var(&s, "S")
+
+	require.NoError(t, parser.Parse())
+	require.Equal(t, "x", s)
+}
+
+func TestFSLookup(t *testing.T) {
+	filesystem := fstest.MapFS{"dir/a.txt": {Data: []byte("hello")}}
+
+	cases := []struct {
+		name string
+		opts []conf.FSOption
+		path string
+		want string
+		ok   bool
+	}{
+		{name: "relative", path: "dir/a.txt", want: "hello", ok: true},
+		{name: "unclean path", path: "dir/../dir/a.txt", want: "hello", ok: true},
+		{name: "missing", path: "dir/b.txt", ok: false},
+		{name: "absolute without always relative", path: "/dir/a.txt", ok: false},
+		{name: "absolute with always relative", opts: []conf.FSOption{conf.FSAlwaysRelative(true)}, path: "/dir/a.txt", want: "hello", ok: true},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			value, ok := conf.FS(filesystem, tc.opts...)(tc.path)
+			require.Equal(t, tc.ok, ok)
+			require.Equal(t, tc.want, value)
+		})
+	}
 }
