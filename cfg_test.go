@@ -199,7 +199,7 @@ func TestBinaryUnmarshaler(t *testing.T) {
 
 func TestCommandLineArgsSource(t *testing.T) {
 	commandline := conf.MakeParser(
-		conf.CommandLineArgs("--database-url", "db", "-force", "--filter=*.sql", "-count", "42", "-input", "a", "--input", "b", "--rare_underscore"),
+		conf.CommandLineArgs("--database-url", "db", "-force", "--filter=FOO.*.sql", "-count", "42", "-input", "a", "--input", "b", "--rare_underscore"),
 	)
 
 	var (
@@ -224,7 +224,7 @@ func TestCommandLineArgsSource(t *testing.T) {
 
 	require.True(t, force)
 	require.Equal(t, "db", databaseURL)
-	require.Equal(t, "*.sql", filter)
+	require.Equal(t, "FOO.*.sql", filter)
 	require.Equal(t, 42, count)
 	require.Equal(t, "", other)
 	require.Equal(t, []string{"a", "b"}, input)

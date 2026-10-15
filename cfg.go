@@ -170,22 +170,24 @@ func CommandLineArgs(args ...string) LookupFunc {
 	)
 
 	for _, arg := range args {
-		switch {
-		case strings.HasPrefix(arg, "-"):
+		if strings.HasPrefix(arg, "-") {
 			if flag != "" && len(m[flag]) == 0 {
 				m[flag] = []string{"true"}
-			}
-			flag = strings.ToLower(strings.TrimLeft(arg, "-"))
-			if key, value, ok := strings.Cut(flag, "="); ok {
-				m[key] = append(m[key], value)
 				flag = ""
 			}
-		case flag == "":
-			// skip positional args
-		default:
-			m[flag] = append(m[flag], arg)
-			flag = ""
+			key, value, ok := strings.Cut(arg, "=")
+			flag = strings.ToLower(strings.TrimLeft(key, "-"))
+			if ok {
+				m[flag] = append(m[flag], value)
+				flag = ""
+			}
+			continue
 		}
+		if flag == "" {
+			continue
+		}
+		m[flag] = append(m[flag], arg)
+		flag = ""
 	}
 
 	if flag != "" && len(m[flag]) == 0 {
