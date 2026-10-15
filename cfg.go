@@ -7,7 +7,7 @@ import (
 	"io/fs"
 	"maps"
 	"os"
-	"path/filepath"
+	"path"
 	"reflect"
 	"slices"
 	"strings"
@@ -221,16 +221,20 @@ func FSAlwaysRelative(value bool) FSOption {
 	}
 }
 
+// FS returns a lookup func that treats variable names as file paths within filesystem and returns the file's contents.
+// Since it is backed by an fs.FS, paths must use "/" as the separator regardless of the operating system.
+// Paths are cleaned before lookup, and a file that does not exist is reported as not found.
+// Any other error opening, reading, or closing the file causes a panic, which Parse reports as an error for that variable.
 func FS(filesystem fs.FS, opts ...FSOption) LookupFunc {
 	var options fsoptions
 	for _, apply := range opts {
 		apply(&options)
 	}
-	return func(path string) (string, bool) {
+	return func(filepath string) (string, bool) {
 		if options.AlwaysRelative {
-			path = strings.TrimLeftFunc(path, func(r rune) bool { return r == filepath.Separator })
+			filepath = strings.TrimLeft(filepath, "/")
 		}
-		file, err := filesystem.Open(filepath.Clean(path))
+		file, err := filesystem.Open(path.Clean(filepath))
 		if err != nil {
 			if errors.Is(err, fs.ErrNotExist) {
 				return "", false
@@ -238,8 +242,9 @@ func FS(filesystem fs.FS, opts ...FSOption) LookupFunc {
 			panic(err)
 		}
 		defer func() {
-			if err := file.Close(); err != nil {
-				panic(xerr.Join(recover().(error), err))
+			if closeErr := file.Close(); closeErr != nil {
+				err, _ := recover().(error)
+				panic(xerr.Join(err, closeErr))
 			}
 		}()
 

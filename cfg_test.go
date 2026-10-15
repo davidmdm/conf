@@ -1,11 +1,14 @@
 package conf_test
 
 import (
+	"cmp"
 	"encoding"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"io/fs"
 	"net/url"
 	"os"
 	"strings"
@@ -662,6 +665,7 @@ func TestFSLookup(t *testing.T) {
 		{name: "missing", path: "dir/b.txt", ok: false},
 		{name: "absolute without always relative", path: "/dir/a.txt", ok: false},
 		{name: "absolute with always relative", opts: []conf.FSOption{conf.FSAlwaysRelative(true)}, path: "/dir/a.txt", want: "hello", ok: true},
+		{name: "repeated leading slashes with always relative", opts: []conf.FSOption{conf.FSAlwaysRelative(true)}, path: "//dir/a.txt", want: "hello", ok: true},
 	}
 
 	for _, tc := range cases {
@@ -669,6 +673,44 @@ func TestFSLookup(t *testing.T) {
 			value, ok := conf.FS(filesystem, tc.opts...)(tc.path)
 			require.Equal(t, tc.ok, ok)
 			require.Equal(t, tc.want, value)
+		})
+	}
+}
+
+// faultyFile is a filesystem whose only file fails to read and/or close with the given errors.
+type faultyFile struct{ readErr, closeErr error }
+
+func (f faultyFile) Open(string) (fs.File, error) { return f, nil }
+func (f faultyFile) Stat() (fs.FileInfo, error)   { return nil, nil }
+func (f faultyFile) Read([]byte) (int, error)     { return 0, cmp.Or(f.readErr, io.EOF) }
+func (f faultyFile) Close() error                 { return f.closeErr }
+
+func TestFSErrors(t *testing.T) {
+	cases := []struct {
+		name string
+		file faultyFile
+		err  string
+	}{
+		{
+			name: "close fails",
+			file: faultyFile{closeErr: errors.New("close failed")},
+			err:  "failed to parse variable(s): f: close failed",
+		},
+		{
+			name: "read and close fail",
+			file: faultyFile{readErr: errors.New("read failed"), closeErr: errors.New("close failed")},
+			err:  "failed to parse variable(s): f: errors:\n  - read failed\n  - close failed",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			parser := conf.MakeParser(conf.FS(tc.file))
+
+			var s string
+			parser.Var(&s, "f")
+
+			require.EqualError(t, parser.Parse(), tc.err)
 		})
 	}
 }
