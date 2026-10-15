@@ -4,6 +4,7 @@ import (
 	"encoding"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/url"
 	"os"
@@ -374,6 +375,8 @@ func register[T any](opts ...conf.Option[T]) func(conf.Parser) func() any {
 }
 
 func TestParse(t *testing.T) {
+	invalid := conf.WithValidator(func(int) error { return errors.New("invalid") })
+
 	cases := []struct {
 		Name    string
 		Value   string
@@ -544,6 +547,24 @@ func TestParse(t *testing.T) {
 			Value: "1",
 			Run:   register(conf.WithValidator(func(int) error { return nil })),
 			Want:  1,
+		},
+		{
+			Name:    "validator skipped when missing",
+			Missing: true,
+			Run:     register(invalid),
+			Want:    0,
+		},
+		{
+			Name:    "validator skipped for default",
+			Missing: true,
+			Run:     register(conf.Default(7), invalid),
+			Want:    7,
+		},
+		{
+			Name:  "validator skipped when empty is skipped",
+			Value: "",
+			Run:   register(conf.SkipEmpty[int](true), invalid),
+			Want:  0,
 		},
 	}
 
